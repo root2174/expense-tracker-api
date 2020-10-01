@@ -22,13 +22,19 @@ public class TransactionRepositoryImpl implements TransactionRepository{
             "AMOUNT, NOTE, TRANSACTION_DATE) VALUES(NEXTVAL('ET_TRANSACTION_SEQ'), ?, ?, ?, ?, ?)";
     private static final String SQL_FIND_BY_ID = "SELECT TRANSACTION_ID, CATEGORY_ID, USER_ID, AMOUNT, NOTE, " +
             "TRANSACTION_DATE FROM ET_TRANSACTIONS WHERE USER_ID = ? AND CATEGORY_ID = ? AND TRANSACTION_ID = ?";
+    private static final String SQL_FIND_ALL = "SELECT TRANSACTION_ID, CATEGORY_ID, USER_ID, AMOUNT, NOTE, " +
+            "TRANSACTION_DATE FROM ET_TRANSACTIONS WHERE USER_ID = ? AND CATEGORY_ID = ?";
+    private static final String SQL_UPDATE = "UPDATE ET_TRANSACTIONS SET AMOUNT = ?, NOTE = ?, TRANSACTION_DATE = ? " +
+            "WHERE USER_ID = ? AND CATEGORY_ID = ? AND TRANSACTION_ID = ?";
+    private static final String SQL_DELETE = "DELETE FROM ET_TRANSACTIONS WHERE USER_ID = ? AND CATEGORY_ID = ? AND " +
+            "TRANSACTION_ID = ?";
 
     @Autowired
     JdbcTemplate jdbcTemplate;
 
     @Override
     public List<Transaction> findAll(Integer userId, Integer categoryId) {
-        return null;
+        return jdbcTemplate.query(SQL_FIND_ALL, new Object[]{userId, categoryId}, transactionRowMapper);
     }
 
     @Override
@@ -67,12 +73,20 @@ public class TransactionRepositoryImpl implements TransactionRepository{
 
     @Override
     public void update(Integer userId, Integer categoryId, Integer transactionId, Transaction transaction) throws EtBadRequestException {
-
+        try {
+            jdbcTemplate.update(SQL_UPDATE, transaction.getAmount(), transaction.getNote(),
+                    transaction.getTransactionDate(), userId, categoryId, transactionId);
+        } catch (Exception e) {
+            throw new EtBadRequestException("Invalid request");
+        }
     }
 
     @Override
     public void removeById(Integer userId, Integer categoryId, Integer transactionId) throws EtResourceNotFoundException {
-
+        int count = jdbcTemplate.update(SQL_DELETE, userId, categoryId, transactionId);
+        if (count == 0) {
+            throw new EtResourceNotFoundException("Transaction not found");
+        }
     }
 
     private final RowMapper<Transaction> transactionRowMapper = ((rs, rowNum) -> new Transaction(rs.getInt("TRANSACTION_ID"),
